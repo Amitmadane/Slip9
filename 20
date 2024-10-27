@@ -1,0 +1,105 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <time.h>
+#define MAX_PROCESSES 10
+#define IO_WAIT_TIME 2
+typedef struct {
+    int id;
+    int arrivalTime;
+    int burstTime;
+    int remainingTime;
+    int waitingTime;
+    int turnaroundTime;
+    int completionTime;
+} Process;
+void calculateTimes(Process processes[], int n, int timeQuantum) {
+    int currentTime = 0;
+    int completed = 0;
+    int totalWaitingTime = 0;
+    int totalTurnaroundTime = 0;
+    int queue[MAX_PROCESSES];
+    int front = 0, rear = 0;
+    for (int i = 0; i < n; i++) {
+        processes[i].remainingTime = processes[i].burstTime;
+        if (processes[i].arrivalTime <= currentTime) {
+            queue[rear++] = i;
+        }
+    }
+    printf("\nGantt Chart:\n|");
+    while (completed < n) {
+        if (front == rear) { 
+            currentTime++;
+            continue;
+        }
+        int index = queue[front++];
+        if (processes[index].remainingTime > 0) {
+            printf(" P%d |", processes[index].id);
+            int executionTime = (processes[index].remainingTime > timeQuantum) ? timeQuantum : processes[index].remainingTime;
+            currentTime += executionTime;
+            processes[index].remainingTime -= executionTime;
+            if (processes[index].remainingTime == 0) {
+                processes[index].completionTime = currentTime;
+                processes[index].turnaroundTime = processes[index].completionTime - processes[index].arrivalTime;
+                processes[index].waitingTime = processes[index].turnaroundTime - processes[index].burstTime;
+                totalWaitingTime += processes[index].waitingTime;
+                totalTurnaroundTime += processes[index].turnaroundTime;
+                completed++;
+            } else {
+                queue[rear++] = index; 
+            }
+            for (int i = 0; i < n; i++) {
+                if (i != index && processes[i].arrivalTime <= currentTime && processes[i].remainingTime > 0) {
+                    bool isInQueue = false;
+                    for (int j = front; j < rear; j++) {
+                        if (queue[j] == i) {
+                            isInQueue = true;
+                            break;
+                        }
+                    }
+                    if (!isInQueue) {
+                        queue[rear++] = i;
+                    }
+                }
+            }
+            currentTime += IO_WAIT_TIME; 
+        }
+    }
+    printf("\n");
+    printf("\nAverage Waiting Time: %.2f\n", (float)totalWaitingTime / n);
+    printf("Average Turnaround Time: %.2f\n", (float)totalTurnaroundTime / n);
+}
+void printProcessDetails(Process processes[], int n) {
+    printf("\nProcess Details:\n");
+    printf("ID\tArrival\tBurst\tWaiting\tTurnaround\tCompletion\n");
+    for (int i = 0; i < n; i++) {
+        printf("%d\t%d\t%d\t%d\t%d\t\t%d\n", processes[i].id, processes[i].arrivalTime,
+               processes[i].burstTime, processes[i].waitingTime, processes[i].turnaroundTime,
+               processes[i].completionTime);
+    }
+}
+int main() {
+    int n, timeQuantum;
+    Process processes[MAX_PROCESSES];
+    srand(time(NULL));
+    printf("Enter the number of processes (max %d): ", MAX_PROCESSES);
+    scanf("%d", &n);
+    if (n > MAX_PROCESSES) {
+        printf("Error: Maximum number of processes exceeded.\n");
+        return 1;
+    }
+    printf("Enter the time quantum: ");
+    scanf("%d", &timeQuantum);
+    for (int i = 0; i < n; i++) {
+        processes[i].id = i + 1;
+        printf("Enter arrival time and CPU burst for Process P%d: ", i + 1);
+        scanf("%d %d", &processes[i].arrivalTime, &processes[i].burstTime);
+        processes[i].remainingTime = processes[i].burstTime;
+        processes[i].waitingTime = 0;
+        processes[i].turnaroundTime = 0;
+        processes[i].completionTime = 0;
+    }
+    calculateTimes(processes, n, timeQuantum);
+    printProcessDetails(processes, n);
+    return 0;
+}
